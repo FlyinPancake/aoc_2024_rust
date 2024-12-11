@@ -2,8 +2,7 @@ advent_of_code::solution!(11);
 
 use anyhow::{bail, Result};
 use cached::proc_macro::cached;
-use itertools::Itertools;
-use std::{collections::HashMap, num::ParseIntError};
+use std::num::ParseIntError;
 
 pub fn parse(input: &str) -> Vec<u64> {
     let res: Result<Vec<u64>, ParseIntError> = input
@@ -15,42 +14,27 @@ pub fn parse(input: &str) -> Vec<u64> {
 }
 
 pub fn part_one(input: &str) -> Option<u64> {
-    let mut nums = parse(input).into_iter().counts();
-
-    for _ in 0..25 {
-        nums = process_nums(nums)
-    }
-    Some(nums.values().sum::<usize>() as u64)
+    let res = parse(input).into_iter().map(|n| blink(n, 25)).sum();
+    Some(res)
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    let mut nums = parse(input).into_iter().counts();
-
-    for _ in 0..75 {
-        nums = process_nums(nums)
-    }
-    Some(nums.values().sum::<usize>() as u64)
-}
-
-fn process_nums(counts: HashMap<u64, usize>) -> HashMap<u64, usize> {
-    let mut new_counts = HashMap::new();
-    for (k, v) in counts {
-        for r in blink(k) {
-            *new_counts.entry(r).or_insert(0) += v
-        }
-    }
-
-    new_counts
+    let res = parse(input).into_iter().map(|n| blink(n, 75)).sum();
+    Some(res)
 }
 
 #[cached]
-fn blink(n: u64) -> Vec<u64> {
+fn blink(n: u64, depth: u64) -> u64 {
+    if depth == 0 {
+        return 1;
+    }
+
     if n == 0 {
-        return vec![1];
+        return blink(1, depth - 1);
     }
     match split_num(n) {
-        Ok((l, r)) => vec![l, r],
-        Err(_) => vec![n * 2024],
+        Ok((l, r)) => blink(l, depth - 1) + blink(r, depth - 1),
+        Err(_) => blink(n * 2024, depth - 1),
     }
 }
 
