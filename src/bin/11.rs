@@ -1,6 +1,7 @@
 advent_of_code::solution!(11);
 
 use anyhow::{bail, Result};
+use cached::proc_macro::cached;
 use itertools::Itertools;
 use std::{collections::HashMap, num::ParseIntError};
 
@@ -42,6 +43,7 @@ fn process_nums(counts: HashMap<u64, usize>) -> HashMap<u64, usize> {
     new_counts
 }
 
+#[cached]
 fn blink(n: u64) -> Vec<u64> {
     if n == 0 {
         return vec![1];
