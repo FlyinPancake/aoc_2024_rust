@@ -1,14 +1,8 @@
 use itertools::*;
-use ndarray::prelude::*;
-use ndarray_linalg::*;
 
 advent_of_code::solution!(13);
 
 type Coord = (i64, i64);
-
-fn coord_sub((bx, by): Coord, (sx, sy): Coord) -> Coord {
-    (bx - sx, by - sy)
-}
 
 #[derive(Debug)]
 struct ClawMachine {
@@ -76,43 +70,35 @@ fn push_buttons(claw: ClawMachine) -> i64 {
         prize,
     } = claw;
 
-    let lhs: Array2<f64> = arr2(&[
-        [btn_a.0 as f64, btn_b.0 as f64],
-        [btn_a.1 as f64, btn_b.1 as f64],
-    ]);
+    let (x1, y1) = (btn_a.0 as f64, btn_a.1 as f64);
+    let (x2, y2) = (btn_b.0 as f64, btn_b.1 as f64);
+    let (px, py) = (prize.0 as f64, prize.1 as f64);
 
-    // lhs[[0, 0]] = btn_a.0 as f64;
-    // lhs[[0, 1]] = btn_b.0 as f64;
-    // lhs[[1, 0]] = btn_a.1 as f64;
-    // lhs[[1, 1]] = btn_b.1 as f64;
+    let b = (py * x1 - y1 * px) / (y2 * x1 - y1 * x2);
 
-    let rhs: Array1<f64> = arr1(&[prize.0 as f64, prize.1 as f64]);
-    // rhs[[0, 0]] = prize.0 as f64;
-    // rhs[[1, 0]] = prize.1 as f64;
+    let a = (px - b * x2) / x1;
 
-    let sol = lhs.solve(&rhs).unwrap(); //.dot(&rhs);
+    let sol = [a, b];
 
-    let sol = sol.map(|el| round(*el, 3));
-
-    if sol[0].fract() > 0.001 || sol[1].fract() > 0.001 {
-        eprintln!("x:{:.3} y: {:.3}", sol[0].fract(), sol[1].fract());
-        return 0;
+    for s0 in [sol[0].ceil(), sol[0].floor()] {
+        for s1 in [sol[1].ceil(), sol[1].floor()] {
+            let eq1_ok = x1 * s0 + x2 * s1 == px;
+            let eq2_ok = y1 * s0 + y2 * s1 == py;
+            if eq1_ok && eq2_ok {
+                return (sol[0] * 3f64 + sol[1]) as i64;
+            }
+        }
     }
 
-    (sol[0] * 3f64 + sol[1]) as i64
+    0
 }
 
-fn round(x: f64, decimals: u32) -> f64 {
-    let y = 10i32.pow(decimals) as f64;
-    (x * y).round() / y
-}
-
-pub fn part_two(input: &str) -> Option<u32> {
+pub fn part_two(input: &str) -> Option<u64> {
     let input = parse(input);
 
     let input = input.into_iter().map(|mut el| {
-        el.prize.0 += 10000000000000;
-        el.prize.1 += 10000000000000;
+        el.prize.0 += 10_000_000_000_000;
+        el.prize.1 += 10_000_000_000_000;
         el
     });
 
@@ -122,7 +108,7 @@ pub fn part_two(input: &str) -> Option<u32> {
         sum += push_buttons(cm);
     }
 
-    Some(sum as u32)
+    Some(sum as u64)
 }
 
 #[cfg(test)]
@@ -132,12 +118,12 @@ mod tests {
     #[test]
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(480));
     }
 
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(875318608908));
     }
 }

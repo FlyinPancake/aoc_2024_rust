@@ -1,7 +1,5 @@
-use std::collections::{BTreeSet, HashMap, VecDeque};
-
-use indexmap::IndexMap;
 use itertools::Itertools;
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
 advent_of_code::solution!(12);
 
@@ -97,73 +95,38 @@ fn neighbours((row, col): (usize, usize)) -> [Option<(usize, usize)>; 4] {
     res
 }
 
-// enum Direction {
-//     Up,
-//     Down,
-//     Left,
-//     Right,
-// }
-
-// impl Direction {
-//     fn opposite(&self) -> Self {
-//         match self {
-//             Direction::Up => Self::Down,
-//             Direction::Down => Self::Up,
-//             Direction::Left => Self::Right,
-//             Direction::Right => Self::Left,
-//         }
-//     }
-// }
-
 fn fence_price_2(coords: BTreeSet<(usize, usize)>) -> usize {
-    // let region: IndexMap<(usize, usize), Vec<(usize, usize)>> = coords
-    //     .iter()
-    //     .map(|el| {
-    //         let neighbors = coords
-    //             .iter()
-    //             .filter_map(|other| match is_neighbouring(el, other) {
-    //                 true => {
-    //                     if el == other {
-    //                         None
-    //                     } else {
-    //                         Some(*other)
-    //                     }
-    //                 }
-    //                 false => None,
-    //             })
-    //             .collect::<Vec<(usize, usize)>>();
-    //         (*el, neighbors)
-    //     })
-    //     .collect();
-
-    // ((coords.len() * 4) - 2 * neighbor_sides.len()) * coords.len()
-
-    let mut corners = 0;
+    let mut corners = BTreeSet::new();
 
     for (r, c) in coords.clone() {
         // (bottom_right, top_right, top_left, bottom_left)
         for (r, c) in [(r, c), (r + 1, c), (r, c + 1), (r + 1, c + 1)] {
-            corners += match get_around_corner((r, c), &coords) {
-                (true, true, true, true) | (false, false, false, false) => 0,
-                (true, true, true, false)
-                | (true, true, false, true)
-                | (true, false, true, true)
-                | (false, true, true, true)
-                | (false, false, false, true)
-                | (false, false, true, false)
-                | (false, true, false, false)
-                | (true, false, false, false) => 1,
-                (true, true, false, false)
-                | (false, false, true, true)
-                | (false, true, true, false)
-                | (true, false, false, true) => 0,
-                (true, false, true, false) | (false, true, false, true) => 2,
-            };
+            corners.insert((r, c));
         }
     }
+    let mut corner_count = 0;
 
-    println!("{}", corners);
-    corners as usize
+    for (r, c) in corners {
+        corner_count += match get_around_corner((r, c), &coords) {
+            (true, true, true, true) | (false, false, false, false) => 0,
+            (true, true, true, false)
+            | (true, true, false, true)
+            | (true, false, true, true)
+            | (false, true, true, true)
+            | (false, false, false, true)
+            | (false, false, true, false)
+            | (false, true, false, false)
+            | (true, false, false, false) => 1,
+            (true, true, false, false)
+            | (false, false, true, true)
+            | (false, true, true, false)
+            | (true, false, false, true) => 0,
+            (true, false, true, false) | (false, true, false, true) => 2,
+        };
+    }
+
+    // println!("{}", corner_count);
+    corner_count as usize * coords.len()
 }
 
 type Coord = (usize, usize);
@@ -193,33 +156,6 @@ fn get_around_corner((r, c): Coord, coords: &BTreeSet<Coord>) -> (bool, bool, bo
     (bottom_right, top_right, top_left, bottom_left)
 }
 
-// fn get_turns(
-//     initial_pos: (usize, usize),
-//     current_pos: (usize, usize),
-//     current_dir: Direction,
-//     ns: IndexMap<(usize, usize), Vec<(usize, usize)>>,
-// ) -> usize {
-//     todo!()
-// }
-
-// fn get_dirs(
-//     (pos_r, pos_c): (usize, usize),
-//     ns: Vec<(usize, usize)>,
-// ) -> VecDeque<(Direction, (usize, usize))> {
-//     ns.iter()
-//         .map(|n| {
-//             let dir = match *n {
-//                 (r, c) if r == pos_r && c == pos_c + 1 => Direction::Left,
-//                 (r, c) if r == pos_r + 1 && c == pos_c => Direction::Down,
-//                 (r, c) if r == pos_r && c == pos_c - 1 => Direction::Right,
-//                 (r, c) if r == pos_r - 1 && c == pos_c => Direction::Up,
-//                 _ => unimplemented!(),
-//             };
-//             (dir, *n)
-//         })
-//         .collect()
-// }
-
 pub fn part_two(input: &str) -> Option<u32> {
     let grid: Vec<Vec<char>> = input
         .split("\n")
@@ -243,9 +179,9 @@ pub fn part_two(input: &str) -> Option<u32> {
 
     let mut s = 0usize;
 
-    for (ch, coords) in grouped {
+    for (_, coords) in grouped {
         let chunks = chunk_coords(coords.into_iter().collect());
-        println!("{}", ch);
+        // println!("{}", ch);
         s += chunks.into_iter().map(fence_price_2).sum::<usize>();
     }
 
@@ -265,6 +201,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(1206));
     }
 }

@@ -28,8 +28,10 @@ Solutions for [Advent of Code](https://adventofcode.com/) in [Rust](https://www.
 | Day | Part 1 | Part 2 |
 | :---: | :---: | :---:  |
 | [Day 11](./src/bin/11.rs) | `306.0ns` | `312.0ns` |
+| [Day 12](./src/bin/12.rs) | `33.7ms` | `19.0ms` |
+| [Day 13](./src/bin/13.rs) | `79.0µs` | `77.1µs` |
 
-**Total: 0.00ms**
+**Total: 52.86ms**
 <!--- benchmarking table --->
 
 ```example
@@ -37,6 +39,10 @@ Machine specs:
 CPU: AMD Ryzen 9 3950X
 RAM: 64GB DDR4 3200MT/s
 ```
+
+> Day 11
+>
+> The day 11 solution's benchmark is off, as it runs the same example again and again. As the functions are memoized, the benchmark is not representative of the actual runtime.
 
 ---
 
