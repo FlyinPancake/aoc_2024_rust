@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap, VecDeque};
 
+use indexmap::IndexMap;
 use itertools::Itertools;
 
 advent_of_code::solution!(12);
@@ -7,7 +8,6 @@ advent_of_code::solution!(12);
 pub fn part_one(input: &str) -> Option<u32> {
     let grid: Vec<Vec<char>> = input
         .split("\n")
-        .into_iter()
         .filter_map(|line| match line {
             "" => None,
             _ => Some(line.chars().collect()),
@@ -48,7 +48,7 @@ fn chunk_coords(mut coords: BTreeSet<(usize, usize)>) -> Vec<BTreeSet<(usize, us
             let remaining_plants: BTreeSet<(usize, usize)> =
                 coords.difference(&chunk).cloned().collect();
 
-            vec![vec![chunk], (chunk_coords(remaining_plants))].concat()
+            [vec![chunk], (chunk_coords(remaining_plants))].concat()
         }
     }
 }
@@ -65,7 +65,7 @@ fn find_first_chunk(
         let c = q.pop_front().unwrap();
         let ns = neighbours(c)
             .into_iter()
-            .filter_map(|n| n)
+            .flatten()
             .filter_map(|n| coords.take(&n));
         q.extend(ns);
         chunk.insert(c);
@@ -97,20 +97,132 @@ fn neighbours((row, col): (usize, usize)) -> [Option<(usize, usize)>; 4] {
     res
 }
 
-fn fence_price_2(coords: BTreeSet<(usize, usize)>) -> usize {
-    let neighbour_sides = coords
-        .iter()
-        .combinations(2)
-        .filter(|l| is_neighbouring(l[0], l[1]))
-        .count();
+// enum Direction {
+//     Up,
+//     Down,
+//     Left,
+//     Right,
+// }
 
-    ((coords.len() * 4) - 2 * neighbour_sides) * coords.len()
+// impl Direction {
+//     fn opposite(&self) -> Self {
+//         match self {
+//             Direction::Up => Self::Down,
+//             Direction::Down => Self::Up,
+//             Direction::Left => Self::Right,
+//             Direction::Right => Self::Left,
+//         }
+//     }
+// }
+
+fn fence_price_2(coords: BTreeSet<(usize, usize)>) -> usize {
+    // let region: IndexMap<(usize, usize), Vec<(usize, usize)>> = coords
+    //     .iter()
+    //     .map(|el| {
+    //         let neighbors = coords
+    //             .iter()
+    //             .filter_map(|other| match is_neighbouring(el, other) {
+    //                 true => {
+    //                     if el == other {
+    //                         None
+    //                     } else {
+    //                         Some(*other)
+    //                     }
+    //                 }
+    //                 false => None,
+    //             })
+    //             .collect::<Vec<(usize, usize)>>();
+    //         (*el, neighbors)
+    //     })
+    //     .collect();
+
+    // ((coords.len() * 4) - 2 * neighbor_sides.len()) * coords.len()
+
+    let mut corners = 0;
+
+    for (r, c) in coords.clone() {
+        // (bottom_right, top_right, top_left, bottom_left)
+        for (r, c) in [(r, c), (r + 1, c), (r, c + 1), (r + 1, c + 1)] {
+            corners += match get_around_corner((r, c), &coords) {
+                (true, true, true, true) | (false, false, false, false) => 0,
+                (true, true, true, false)
+                | (true, true, false, true)
+                | (true, false, true, true)
+                | (false, true, true, true)
+                | (false, false, false, true)
+                | (false, false, true, false)
+                | (false, true, false, false)
+                | (true, false, false, false) => 1,
+                (true, true, false, false)
+                | (false, false, true, true)
+                | (false, true, true, false)
+                | (true, false, false, true) => 0,
+                (true, false, true, false) | (false, true, false, true) => 2,
+            };
+        }
+    }
+
+    println!("{}", corners);
+    corners as usize
 }
+
+type Coord = (usize, usize);
+
+fn get_around_corner((r, c): Coord, coords: &BTreeSet<Coord>) -> (bool, bool, bool, bool) {
+    let r_nonzero = r != 0;
+    let c_nonzero = c != 0;
+
+    let bottom_right = coords.contains(&(r, c));
+    let top_right = if r_nonzero {
+        coords.contains(&(r - 1, c))
+    } else {
+        false
+    };
+    let top_left = if r_nonzero && c_nonzero {
+        coords.contains(&(r - 1, c - 1))
+    } else {
+        false
+    };
+
+    let bottom_left = if c_nonzero {
+        coords.contains(&(r, c - 1))
+    } else {
+        false
+    };
+
+    (bottom_right, top_right, top_left, bottom_left)
+}
+
+// fn get_turns(
+//     initial_pos: (usize, usize),
+//     current_pos: (usize, usize),
+//     current_dir: Direction,
+//     ns: IndexMap<(usize, usize), Vec<(usize, usize)>>,
+// ) -> usize {
+//     todo!()
+// }
+
+// fn get_dirs(
+//     (pos_r, pos_c): (usize, usize),
+//     ns: Vec<(usize, usize)>,
+// ) -> VecDeque<(Direction, (usize, usize))> {
+//     ns.iter()
+//         .map(|n| {
+//             let dir = match *n {
+//                 (r, c) if r == pos_r && c == pos_c + 1 => Direction::Left,
+//                 (r, c) if r == pos_r + 1 && c == pos_c => Direction::Down,
+//                 (r, c) if r == pos_r && c == pos_c - 1 => Direction::Right,
+//                 (r, c) if r == pos_r - 1 && c == pos_c => Direction::Up,
+//                 _ => unimplemented!(),
+//             };
+//             (dir, *n)
+//         })
+//         .collect()
+// }
 
 pub fn part_two(input: &str) -> Option<u32> {
     let grid: Vec<Vec<char>> = input
         .split("\n")
-        .into_iter()
         .filter_map(|line| match line {
             "" => None,
             _ => Some(line.chars().collect()),
@@ -131,9 +243,9 @@ pub fn part_two(input: &str) -> Option<u32> {
 
     let mut s = 0usize;
 
-    for (_, coords) in grouped {
+    for (ch, coords) in grouped {
         let chunks = chunk_coords(coords.into_iter().collect());
-
+        println!("{}", ch);
         s += chunks.into_iter().map(fence_price_2).sum::<usize>();
     }
 
