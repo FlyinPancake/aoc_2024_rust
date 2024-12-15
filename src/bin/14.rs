@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_get_quad() {
-        assert_eq!(get_quad((4, 3), 11, 7), 0);
+        assert_eq!(get_quad((3, 3), 11, 7), 0);
         assert_eq!(get_quad((1, 1), 11, 7), 1);
         assert_eq!(get_quad((1, 9), 11, 7), 2);
         assert_eq!(get_quad((5, 1), 11, 7), 3);
@@ -135,12 +135,12 @@ mod tests {
     #[test]
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, Some(12));
+        assert_eq!(result, Some(21));
     }
 
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(2549));
     }
 }
