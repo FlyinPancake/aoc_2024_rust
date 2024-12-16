@@ -1,5 +1,7 @@
 use std::collections::{BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
 
+use itertools::Itertools;
+
 advent_of_code::solution!(16);
 
 fn parse(input: &str) -> HashMap<(usize, usize), char> {
@@ -15,7 +17,7 @@ fn parse(input: &str) -> HashMap<(usize, usize), char> {
         .collect()
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 enum Direction {
     North,
     West,
@@ -44,10 +46,26 @@ impl Direction {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 struct Node {
     position: (usize, usize),
     direction: Direction,
+}
+
+impl Node {
+    fn moved_to_dir(&self) -> Self {
+        let (r, c) = self.position;
+        let position = match self.direction {
+            Direction::North => (r - 1, c),
+            Direction::West => (r, c - 1),
+            Direction::South => (r + 1, c),
+            Direction::East => (r, c + 1),
+        };
+        Self {
+            position,
+            direction: self.direction,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -69,10 +87,13 @@ impl PartialOrd for State {
 }
 
 pub fn part_one(input: &str) -> Option<i64> {
+    #[cfg(debug_assertions)]
     let height = input.trim().split("\n").count();
+    #[cfg(debug_assertions)]
     let width = input.trim().split("\n").next().unwrap().len();
     let input = parse(input);
     let start = input.iter().find(|(_, ch)| **ch == 'S').unwrap();
+    #[cfg(debug_assertions)]
     let end = input.iter().find(|(_, ch)| **ch == 'E').unwrap();
 
     let mut queue = BinaryHeap::new();
@@ -87,32 +108,6 @@ pub fn part_one(input: &str) -> Option<i64> {
         },
     });
 
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::East,
-        })
-        .insert_entry(0);
-
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::North,
-        })
-        .insert_entry(1000);
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::West,
-        })
-        .insert_entry(2000);
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::South,
-        })
-        .insert_entry(1000);
-
     for (k, v) in input.iter() {
         for dir in [
             Direction::North,
@@ -120,10 +115,6 @@ pub fn part_one(input: &str) -> Option<i64> {
             Direction::South,
             Direction::East,
         ] {
-            if *v == 'S' {
-                continue;
-            }
-
             distances.insert(
                 Node {
                     position: *k,
@@ -135,76 +126,104 @@ pub fn part_one(input: &str) -> Option<i64> {
         }
     }
 
+    distances
+        .entry(Node {
+            position: *start.0,
+            direction: Direction::East,
+        })
+        .insert_entry(0);
+
     let mut tc = None;
 
     'outer: while let Some(coords) = queue.pop() {
-        for (neighbor_pos, dir) in neighbors(coords.node) {
-            let neighbor = Node {
-                position: neighbor_pos,
-                direction: dir,
-            };
-            let cost = match input[&neighbor_pos] {
-                '#' => continue,
-                'E' => {
-                    tc = Some(coords.cost + 1);
-                    prev.insert(neighbor, coords.node);
-                    break 'outer;
-                }
-                _ => distances[&coords.node] + 1 + dir.turn_cost(&coords.node.direction),
-            };
-
-            for dir in [
-                Direction::North,
-                Direction::West,
-                Direction::South,
-                Direction::East,
-            ] {
-                let neighbor_turned = Node {
-                    position: neighbor_pos,
-                    direction: dir,
-                };
-                let cost = cost + dir.turn_cost(&neighbor.direction);
-                if cost < distances[&neighbor_turned] {
-                    distances.entry(neighbor_turned).insert_entry(cost);
-                    prev.entry(neighbor_turned).insert_entry(coords.node);
-                    queue.push(State {
-                        cost,
-                        node: neighbor_turned,
-                    });
-                }
+        let base_cost = match input[&coords.node.position] {
+            '#' => continue,
+            'E' => {
+                tc = Some(coords.cost);
+                break 'outer;
             }
+            _ => distances[&coords.node],
+        };
+
+        for dir in [
+            Direction::West,
+            Direction::South,
+            Direction::East,
+            Direction::North,
+        ] {
+            if dir == coords.node.direction {
+                continue;
+            }
+            let state_turned_node = Node {
+                direction: dir,
+                position: coords.node.position,
+            };
+            let cost = base_cost + dir.turn_cost(&coords.node.direction);
+            if cost < distances[&state_turned_node] {
+                distances.entry(state_turned_node).insert_entry(cost);
+                prev.entry(state_turned_node).insert_entry(coords.node);
+                queue.push(State {
+                    cost,
+                    node: state_turned_node,
+                });
+            }
+        }
+        let next_pos = coords.node.moved_to_dir();
+        let cost = base_cost + 1;
+
+        if cost < distances[&next_pos] {
+            distances.entry(next_pos).insert_entry(cost);
+            prev.entry(next_pos).insert_entry(coords.node);
+            queue.push(State {
+                cost,
+                node: next_pos,
+            });
         }
     }
 
-    // let mut seq = VecDeque::new();
+    // tc = distances
+    //     .iter()
+    //     .filter(|el| el.0.position == *end.0)
+    //     .map(|el| el.1)
+    //     .min()
+    //     .cloned();
 
-    // let mut u = prev
-    //     .keys()
-    //     .find(|Node { position, .. }| *position == *end.0)
-    //     .unwrap()
-    //     .to_owned();
+    if tc.is_none() {
+        panic!("No route found")
+    }
 
-    // while u.position != *start.0 {
-    //     seq.push_front(u);
-    //     u = prev[&u]
-    // }
+    #[cfg(debug_assertions)]
+    {
+        let mut seq = VecDeque::new();
 
-    // // dbg!(seq);
-    // for r in 0..height {
-    //     for c in 0..width {
-    //         let ch = match seq.iter().find(|el| el.position == (r, c)) {
-    //             Some(Node { direction, .. }) => match direction {
-    //                 Direction::North => '^',
-    //                 Direction::West => '<',
-    //                 Direction::South => 'v',
-    //                 Direction::East => '>',
-    //             },
-    //             None => input[&(r, c)],
-    //         };
-    //         eprint!("{}", ch);
-    //     }
-    //     eprintln!()
-    // }
+        let mut u = prev
+            .keys()
+            .find(|Node { position, .. }| *position == *end.0)
+            .unwrap()
+            .to_owned();
+
+        while u.position != *start.0 {
+            seq.push_front(u);
+            u = prev[&u]
+        }
+
+        // dbg!(seq);
+        for r in 0..height {
+            for c in 0..width {
+                let ch = match seq.iter().find(|el| el.position == (r, c)) {
+                    Some(Node { direction, .. }) => match direction {
+                        Direction::North => '^',
+                        Direction::West => '<',
+                        Direction::South => 'v',
+                        Direction::East => '>',
+                    },
+                    None => input[&(r, c)],
+                };
+                eprint!("{}", ch);
+            }
+            eprintln!()
+        }
+    }
 
     tc
 }
@@ -241,43 +260,13 @@ pub fn part_two(input: &str) -> Option<i64> {
         },
     });
 
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::East,
-        })
-        .insert_entry(0);
-
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::North,
-        })
-        .insert_entry(1000);
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::West,
-        })
-        .insert_entry(2000);
-    distances
-        .entry(Node {
-            position: *start.0,
-            direction: Direction::South,
-        })
-        .insert_entry(1000);
-
-    for (k, v) in input.iter() {
+    for (k, _) in input.iter() {
         for dir in [
             Direction::North,
             Direction::West,
             Direction::South,
             Direction::East,
         ] {
-            if *v == 'S' {
-                continue;
-            }
-
             distances.insert(
                 Node {
                     position: *k,
@@ -285,108 +274,133 @@ pub fn part_two(input: &str) -> Option<i64> {
                 },
                 i64::MAX,
             );
-            // queue.push_back(k);
         }
     }
 
-    let mut best_cost = i64::MAX;
+    distances
+        .entry(Node {
+            position: *start.0,
+            direction: Direction::East,
+        })
+        .insert_entry(0);
 
     'outer: while let Some(coords) = queue.pop() {
-        for (neighbor_pos, dir) in neighbors(coords.node) {
-            let neighbor = Node {
-                position: neighbor_pos,
+        let base_cost = match input[&coords.node.position] {
+            '#' => continue,
+
+            'E' => {
+                match coords.cost.cmp(&distances[&coords.node]) {
+                    std::cmp::Ordering::Less => {}
+                    std::cmp::Ordering::Equal => (),
+                    std::cmp::Ordering::Greater => {
+                        break 'outer;
+                    }
+                }
+                continue;
+            }
+
+            _ => distances[&coords.node],
+        };
+        for dir in [
+            Direction::North,
+            Direction::West,
+            Direction::South,
+            Direction::East,
+        ] {
+            if dir == coords.node.direction {
+                continue;
+            }
+            let self_turned = Node {
+                position: coords.node.position,
                 direction: dir,
             };
-            let cost = match input[&neighbor_pos] {
-                '#' => continue,
+            let cost = base_cost + dir.turn_cost(&coords.node.direction);
 
-                'E' => {
-                    match (coords.cost + 1).cmp(&best_cost) {
-                        std::cmp::Ordering::Less => {
-                            best_cost = coords.cost + 1;
-                            prev.entry(neighbor_pos).insert_entry(vec![coords.node]);
-                        }
-                        std::cmp::Ordering::Equal => {
-                            prev.entry(neighbor_pos)
-                                .and_modify(|el| el.push(coords.node));
-                        }
-                        std::cmp::Ordering::Greater => break 'outer,
-                    }
+            match cost.cmp(&distances[&self_turned]) {
+                std::cmp::Ordering::Less => {
+                    distances.entry(self_turned).insert_entry(cost);
+
+                    prev.entry(self_turned)
+                        .insert_entry(HashSet::from([coords.node]));
+                    queue.push(State {
+                        cost,
+                        node: self_turned,
+                    });
+                }
+                std::cmp::Ordering::Equal => {
+                    prev.entry(self_turned).and_modify(|v| {
+                        v.insert(coords.node);
+                    });
+                }
+                std::cmp::Ordering::Greater => {
                     continue;
                 }
+            }
+        }
 
-                _ => distances[&coords.node] + 1 + dir.turn_cost(&coords.node.direction),
-            };
+        let next_pos = coords.node.moved_to_dir();
 
-            for dir in [
-                Direction::North,
-                Direction::West,
-                Direction::South,
-                Direction::East,
-            ] {
-                let neighbor_turned = Node {
-                    position: neighbor_pos,
-                    direction: dir,
-                };
-                let cost = cost + dir.turn_cost(&neighbor.direction);
+        let cost = base_cost + 1;
 
-                match cost.cmp(&distances[&neighbor_turned]) {
-                    std::cmp::Ordering::Less => {
-                        distances.entry(neighbor_turned).insert_entry(cost);
-                        prev.entry(neighbor_turned.position)
-                            .insert_entry(vec![coords.node]);
-                        queue.push(State {
-                            cost,
-                            node: neighbor_turned,
-                        });
-                    }
-                    std::cmp::Ordering::Equal => {
-                        prev.entry(neighbor_turned.position)
-                            .and_modify(|v| v.push(coords.node));
-                    }
-                    std::cmp::Ordering::Greater => {
-                        continue;
-                    }
-                }
+        match cost.cmp(&distances[&next_pos]) {
+            std::cmp::Ordering::Less => {
+                distances.entry(next_pos).insert_entry(cost);
+                prev.entry(next_pos)
+                    .insert_entry(HashSet::from([coords.node]));
+                queue.push(State {
+                    cost,
+                    node: next_pos,
+                });
+            }
+            std::cmp::Ordering::Equal => {
+                prev.entry(next_pos).and_modify(|v| {
+                    v.insert(coords.node);
+                });
+            }
+            std::cmp::Ordering::Greater => {
+                continue;
             }
         }
     }
 
     let mut tiles = BTreeSet::new();
-    let mut q = VecDeque::new();
 
-    let u = prev
+    let s = *prev
         .keys()
-        .find(|position| **position == *end.0)
-        .unwrap()
-        .to_owned();
+        .filter(|el| el.position == *end.0)
+        .min_by(|el1, el2| distances[el1].cmp(&distances[el2]))
+        .unwrap();
 
-    q.push_back(u);
+    let mut q = VecDeque::from([s]);
 
     while let Some(u) = q.pop_front() {
         tiles.insert(u);
-        if u == *start.0 {
+        if u.position == *start.0 {
             continue;
         }
         for tile in &prev[&u] {
-            if !tiles.contains(&tile.position) {
-                q.push_front(tile.position);
+            if !tiles.contains(tile) {
+                q.push_front(*tile);
             }
         }
     }
 
-    // // dbg!(seq);
-    for r in 0..height {
-        for c in 0..width {
-            let ch = match tiles.contains(&(r, c)) {
-                true => 'O',
-                false => input[&(r, c)],
-            };
-            eprint!("{}", ch);
-        }
-        eprintln!()
-    }
-    todo!();
+    let tiles: Vec<(usize, usize)> = tiles.into_iter().map(|el| el.position).unique().collect();
+
+    // // // dbg!(seq);
+    // for r in 0..height {
+    //     for c in 0..width {
+    //         let ch = match tiles.contains(&(r, c)) {
+    //             true => 'O',
+    //             false => input[&(r, c)],
+    //         };
+    //         eprint!("{}", ch);
+    //     }
+    //     eprintln!()
+    // }
+
+    // todo!();
+
     Some(tiles.len() as i64)
 }
 
