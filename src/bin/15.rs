@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::BTreeSet, fmt::Display};
 
 use itertools::Itertools;
 
@@ -145,7 +145,7 @@ pub fn part_one(input: &str) -> Option<u64> {
     for dir in dirs {
         move_robot_in_dir(&mut grid, dir);
     }
-    grid.print_grid();
+    // grid.print_grid();
     Some(calc_gps_coords(&grid))
 }
 
@@ -272,15 +272,108 @@ impl FatGrid {
             eprintln!();
         }
     }
+
+    fn get_at(&self, (row, col): (isize, isize)) -> FatTile {
+        self.elements[row as usize][col as usize]
+    }
+
+    fn update_at(&mut self, (row, col): (isize, isize), value: FatTile) {
+        self.elements[row as usize][col as usize] = value
+    }
+
+    fn get_affected_tiles(&self, dir: Direction) -> CanGo {
+        // let tile = self.get_at(pos);
+        let mut targets = BTreeSet::new();
+        let mut to_visit = BTreeSet::new();
+        to_visit.insert(self.robot_position);
+
+        while !to_visit.is_empty() {
+            let pos = to_visit.pop_first().unwrap();
+            if targets.contains(&pos) {
+                continue;
+            }
+            targets.insert(pos);
+
+            let new_pos = add_coords(pos, dir.get_coord());
+            let tile = self.get_at(new_pos);
+
+            match tile {
+                FatTile::Robot => unreachable!(),
+                FatTile::Empty => (),
+                FatTile::Wall => return CanGo::NoPush,
+                FatTile::RightBox => {
+                    to_visit.insert(add_coords(new_pos, Direction::Left.get_coord()));
+                    to_visit.insert(new_pos);
+                }
+                FatTile::LeftBox => {
+                    to_visit.insert(add_coords(new_pos, Direction::Right.get_coord()));
+                    to_visit.insert(new_pos);
+                }
+            }
+        }
+        // targets
+
+        CanGo::Push(
+            targets
+                .into_iter()
+                .map(|pos| (pos, self.get_at(pos)))
+                .collect(),
+        )
+    }
+
+    fn move_to(&mut self, dir: Direction) {
+        match self.get_affected_tiles(dir) {
+            CanGo::Push(btree_set) => {
+                btree_set
+                    .iter()
+                    .for_each(|(pos, _)| self.update_at(*pos, FatTile::Empty));
+
+                btree_set.iter().for_each(|(pos, tile)| {
+                    let new_pos = add_coords(*pos, dir.get_coord());
+                    if *tile == FatTile::Robot {
+                        self.robot_position = new_pos;
+                    }
+                    self.update_at(new_pos, *tile);
+                });
+            }
+            CanGo::NoPush => (),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum CanGo {
+    Push(BTreeSet<((isize, isize), FatTile)>),
+    NoPush,
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
     let (grid, dirs) = parse(input);
-    let grid = FatGrid::from(grid.elements);
+    let mut grid = FatGrid::from(grid.elements);
 
-    grid.print_grid();
+    // grid.print_grid();
 
-    todo!()
+    for dir in dirs {
+        grid.move_to(dir);
+    }
+
+    // grid.print_grid();
+
+    Some(
+        grid.elements
+            .iter()
+            .enumerate()
+            .flat_map(|(row_idx, row)| {
+                row.iter()
+                    .enumerate()
+                    .map(move |(col_idx, tile)| (row_idx, col_idx, tile))
+            })
+            .filter_map(|(row_idx, col_idx, tile)| match tile {
+                FatTile::LeftBox => Some(100 * row_idx as u64 + col_idx as u64),
+                _ => None,
+            })
+            .sum(),
+    )
 }
 
 #[cfg(test)]
@@ -296,6 +389,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(9021));
     }
 }

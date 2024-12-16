@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Add, u64};
+use std::collections::HashMap;
 
 advent_of_code::solution!(14);
 
@@ -87,15 +87,12 @@ pub fn part_two(input: &str) -> Option<u64> {
     let mut min_sr = u64::MAX;
     let mut min_sr_sec = 0;
 
-    for ii in 0..100_000u64 {
+    for ii in 0..WIDTH * HEIGHT {
         let safety_rating: u64 = input
             .clone()
             .into_iter()
             .map(|(coords, velocity)| {
-                let (y, x) = coords;
-                let (vy, vx) = velocity;
-                let y = add_with_custom_overflow(y, vy, HEIGHT, ii.try_into().unwrap());
-                let x = add_with_custom_overflow(x, vx, WIDTH, ii.try_into().unwrap());
+                let (y, x) = compute_new_coords(coords, velocity, ii);
 
                 get_quad((y, x), WIDTH, HEIGHT)
             })
@@ -115,8 +112,27 @@ pub fn part_two(input: &str) -> Option<u64> {
             min_sr_sec = ii;
         }
     }
+    // This will print the result to the console
+    //
+    // let mut grid = [[" "; WIDTH as usize]; HEIGHT as usize];
+    // for (coords, velocity) in input {
+    //     let (y, x) = compute_new_coords(coords, velocity, min_sr_sec);
+    //     let (y, x) = (y as usize, x as usize);
+    //     grid[y][x] = "█"
+    // }
 
-    Some(min_sr_sec)
+    // grid.into_iter()
+    //     .map(|arr| arr.join(""))
+    //     .for_each(|row| eprintln!("{}", row));
+    Some(min_sr_sec as u64)
+}
+
+fn compute_new_coords(coords: (i64, i64), velocity: (i64, i64), seconds: i64) -> (i64, i64) {
+    let (y, x) = coords;
+    let (vy, vx) = velocity;
+    let y = add_with_custom_overflow(y, vy, HEIGHT, seconds);
+    let x = add_with_custom_overflow(x, vx, WIDTH, seconds);
+    (y, x)
 }
 
 #[cfg(test)]
