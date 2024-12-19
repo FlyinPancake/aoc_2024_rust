@@ -87,6 +87,7 @@ struct Grid {
 }
 
 impl Grid {
+    #[allow(dead_code)]
     fn print_grid(&self) {
         eprintln!("robots position {:?}", self.robot_location);
         for row in &self.elements {
@@ -264,6 +265,7 @@ impl From<Vec<Vec<Tile>>> for FatGrid {
 }
 
 impl FatGrid {
+    #[allow(dead_code)]
     fn print_grid(&self) {
         for row in &self.elements {
             for col in row {

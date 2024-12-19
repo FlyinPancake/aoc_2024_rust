@@ -108,7 +108,7 @@ pub fn part_one(input: &str) -> Option<i64> {
         },
     });
 
-    for (k, v) in input.iter() {
+    for (k, _) in input.iter() {
         for dir in [
             Direction::North,
             Direction::West,
@@ -228,21 +228,10 @@ pub fn part_one(input: &str) -> Option<i64> {
     tc
 }
 
-const fn neighbors(node: Node) -> [((usize, usize), Direction); 4] {
-    let Node {
-        position: (row, col),
-        ..
-    } = node;
-    [
-        ((row, col + 1), Direction::East),
-        ((row - 1, col), Direction::North),
-        ((row, col - 1), Direction::West),
-        ((row + 1, col), Direction::South),
-    ]
-}
-
 pub fn part_two(input: &str) -> Option<i64> {
+    #[cfg(debug_assertions)]
     let height = input.trim().split("\n").count();
+    #[cfg(debug_assertions)]
     let width = input.trim().split("\n").next().unwrap().len();
     let input = parse(input);
     let start = input.iter().find(|(_, ch)| **ch == 'S').unwrap();
@@ -387,19 +376,17 @@ pub fn part_two(input: &str) -> Option<i64> {
 
     let tiles: Vec<(usize, usize)> = tiles.into_iter().map(|el| el.position).unique().collect();
 
-    // // // dbg!(seq);
-    // for r in 0..height {
-    //     for c in 0..width {
-    //         let ch = match tiles.contains(&(r, c)) {
-    //             true => 'O',
-    //             false => input[&(r, c)],
-    //         };
-    //         eprint!("{}", ch);
-    //     }
-    //     eprintln!()
-    // }
-
-    // todo!();
+    #[cfg(debug_assertions)]
+    for r in 0..height {
+        for c in 0..width {
+            let ch = match tiles.contains(&(r, c)) {
+                true => 'O',
+                false => input[&(r, c)],
+            };
+            eprint!("{}", ch);
+        }
+        eprintln!()
+    }
 
     Some(tiles.len() as i64)
 }
